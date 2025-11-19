@@ -1,73 +1,102 @@
-function App() {
+import { useEffect, useState } from 'react'
+import Hero from './components/Hero'
+import TaskForm from './components/TaskForm'
+import TaskList from './components/TaskList'
+import Recommendations from './components/Recommendations'
+
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+
+export default function App() {
+  const [tasks, setTasks] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [creating, setCreating] = useState(false)
+
+  const loadTasks = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${BASE_URL}/tasks`)
+      const data = await res.json()
+      setTasks(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addTask = async (task) => {
+    setCreating(true)
+    try {
+      await fetch(`${BASE_URL}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
+      })
+      await loadTasks()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const createSample = async () => {
+    const samples = [
+      { title: 'Draft project outline', priority: 'high', estimate_minutes: 60 },
+      { title: 'Inbox zero sprint', priority: 'medium', estimate_minutes: 30 },
+      { title: 'Study: algorithms set', priority: 'urgent', estimate_minutes: 90 },
+    ]
+    for (const s of samples) {
+      await addTask(s)
+    }
+  }
+
+  useEffect(() => {
+    loadTasks()
+  }, [])
+
+  const autoSchedule = async () => {
+    try {
+      await fetch(`${BASE_URL}/schedule/auto`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+      alert('Auto-scheduled current tasks into the next few hours!')
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_50%)]"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_50%)]" />
+      <div className="relative max-w-6xl mx-auto px-6 py-10">
+        <Hero onCreateSample={createSample} />
 
-      <div className="relative min-h-screen flex items-center justify-center p-8">
-        <div className="max-w-2xl w-full">
-          {/* Header with Flames icon */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center mb-6">
-              <img
-                src="/flame-icon.svg"
-                alt="Flames"
-                className="w-24 h-24 drop-shadow-[0_0_25px_rgba(59,130,246,0.5)]"
-              />
+        <div className="grid md:grid-cols-3 gap-6 mt-10">
+          <div className="md:col-span-2 space-y-4">
+            <div className="rounded-xl border border-slate-700/60 bg-slate-800/40 p-4">
+              <h2 className="text-white font-semibold mb-3">Add a task</h2>
+              <TaskForm onAdd={addTask} />
             </div>
 
-            <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-              Flames Blue
-            </h1>
+            {loading ? (
+              <div className="text-slate-300">Loading tasks...</div>
+            ) : (
+              <TaskList tasks={tasks} onRefresh={loadTasks} />
+            )}
 
-            <p className="text-xl text-blue-200 mb-6">
-              Build applications through conversation
-            </p>
-          </div>
-
-          {/* Instructions */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-8 shadow-xl mb-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                1
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Describe your idea</h3>
-                <p className="text-blue-200/80 text-sm">Use the chat panel on the left to tell the AI what you want to build</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                2
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Watch it build</h3>
-                <p className="text-blue-200/80 text-sm">Your app will appear in this preview as the AI generates the code</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                3
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Refine and iterate</h3>
-                <p className="text-blue-200/80 text-sm">Continue the conversation to add features and make changes</p>
-              </div>
+            <div className="flex gap-3">
+              <button onClick={autoSchedule} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Auto-schedule</button>
+              <a href="/test" className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-white font-semibold">Backend & DB status</a>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center">
-            <p className="text-sm text-blue-300/60">
-              No coding required • Just describe what you want
-            </p>
+          <div className="md:col-span-1 space-y-4">
+            <Recommendations baseUrl={BASE_URL} />
+            <div className="rounded-xl border border-slate-700/60 bg-slate-800/40 p-4 text-slate-300 text-sm">
+              <p>Tip: Use the button above to create sample tasks, then auto-schedule and check recommendations.</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
   )
 }
-
-export default App
